@@ -1,0 +1,5 @@
+node_modules/
+tracker.db
+tracker.db-journal
+tracker.db-wal
+tracker.db-shm
