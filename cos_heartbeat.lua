@@ -66,27 +66,36 @@ local STAT_PATHS = {
     deathToken    = { "Items", "DeathGachaToken" },
 }
 
+-- Retorna nil (nao 0) quando o Data ainda nao replicou, pra nunca sobrescrever
+-- um valor bom com 0 transitorio no servidor.
 local function readStat(key)
     local node = LocalPlayer and LocalPlayer:FindFirstChild("PlayerGui")
     node = node and node:FindFirstChild("Data")
     for _, name in ipairs(STAT_PATHS[key]) do
         node = node and node:FindFirstChild(name)
     end
-    if not node then return 0 end
+    if not node then return nil end
     local ok, num = pcall(function() return tonumber(node.Value) end)
-    return ok and num or 0
+    return ok and num or nil
 end
 
 -- Envia heartbeat
 local function sendHeartbeat()
+    -- Se o Data.Coins ainda nao replicou, nao envia: evita sobrescrever
+    -- um mush bom com 0 transitorio (server faz overwrite cego do campo).
+    local mush = readStat("mush")
+    if mush == nil then
+        warn("[CoS-tracker] Data.Coins ainda nao pronto, pulando heartbeat")
+        return
+    end
     local payload = {
         userId = LocalPlayer.UserId,
         username = LocalPlayer.Name,
-        mush          = readStat("mush"),
-        maxGrowth     = readStat("maxGrowth"),
-        partialGrowth = readStat("partialGrowth"),
-        reviveToken   = readStat("reviveToken"),
-        deathToken    = readStat("deathToken"),
+        mush          = mush,
+        maxGrowth     = readStat("maxGrowth")     or 0,
+        partialGrowth = readStat("partialGrowth") or 0,
+        reviveToken   = readStat("reviveToken")   or 0,
+        deathToken    = readStat("deathToken")    or 0,
         placeId = game.PlaceId,
         jobId = game.JobId,
         sessionStart = sessionStart,
@@ -108,6 +117,13 @@ local function sendHeartbeat()
     if not ok then
         warn("[CoS-tracker] erro ao enviar: " .. tostring(err))
     end
+end
+
+-- Espera os dados replicarem antes do 1o heartbeat (evita 1o envio com 0)
+do
+    local pg = LocalPlayer:WaitForChild("PlayerGui", 30)
+    local data = pg and pg:WaitForChild("Data", 30)
+    if data then data:WaitForChild("Coins", 15) end
 end
 
 -- Heartbeat inicial e loop
