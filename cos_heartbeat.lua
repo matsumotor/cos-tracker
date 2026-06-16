@@ -30,7 +30,13 @@ end
 
 local Players = game:GetService("Players")
 local HttpService = game:GetService("HttpService")
+
+-- No autoexec o script pode rodar antes do LocalPlayer existir; espera ele aparecer.
 local LocalPlayer = Players.LocalPlayer
+while not LocalPlayer do
+    task.wait()
+    LocalPlayer = Players.LocalPlayer
+end
 
 -- http_request varia por executor; tenta os mais comuns
 local request = http_request or syn and syn.request or request or (fluxus and fluxus.request) or http and http.request
